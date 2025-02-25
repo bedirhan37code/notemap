@@ -176,3 +176,22 @@ ul li #delete-btn:hover {
 .add #add-title {
   display: block !important;
 }
+
+/* Gizli Mod */
+
+.hide {
+  height: 90px;
+}
+
+.hide .head {
+  margin-bottom: 20px;
+}
+
+.hide #arrow {
+  rotate: 180deg;
+}
+
+.hide ul,
+.hide form {
+  display: none;
+}

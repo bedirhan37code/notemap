@@ -2,12 +2,14 @@
 // Bu sayede haritanın başlangıç konumunu belirleyeceğiz.
 
 import { personIcon } from "./constants.js";
+import { getNoteIcon, getStatus } from "./helpers.js";
 import elements from "./ui.js";
 
 // Global Değişkenler
 
 var map;
 let clickedCoords;
+let layer;
 
 // Localstorage'dan notes keyine sahip elemanları al
 let notes = JSON.parse(localStorage.getItem("notes")) || [];
@@ -52,11 +54,17 @@ function loadMap(currentPosition, msg) {
 
   // Ekrana basılacak bir katman oluştur
 
-  let layer = L.layerGroup().addTo(map);
+  layer = L.layerGroup().addTo(map);
   // Kullanıcının başlangıç konumuna bir tane marker ekle
   L.marker(currentPosition, { icon: personIcon }).addTo(map).bindPopup(msg);
 
   map.on("click", onMapClick);
+
+  // Notları Render Eden Fonksiyon
+
+  renderNotes();
+  // Markerları render eden fonksiyon
+  renderMarkers();
 }
 
 // ! Haritaya tıklanıldığında çalışacak fonksiyon
@@ -104,41 +112,119 @@ elements.form.addEventListener("submit", (e) => {
 
   // Noteları render et
   renderNotes();
+  // Markerları render et
+  renderMarkers();
 });
 
-// Close btn e tıklanınca aside ı tekrardan eski haline çevir
+// ! Close btn e tıklanınca aside ı tekrardan eski haline çevir
 
 elements.cancelBtn.addEventListener("click", () => {
   elements.aside.classList.remove("add");
 });
 
-// Mevcut Notları render eden fonksiyon
+// ! Mevcut Notları render eden fonksiyon
 
 function renderNotes() {
   // note dizisinie dönerek herbir not için bir html oluştursun
 
   const noteCard = notes
-    .map(
-      (note) =>
-        `<!-- <li>
+    .map((note) => {
+      // Tarih ayarı
+      const date = new Date(note.date).toLocaleDateString("tr", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+      // Status ayarlaması
+      // getStatus adında bir fonksiyon yazıldı.
+      // Bu fonksiyon kendisine verilen status değerine göre uygun ifadeyi return etti
+
+      return `<li>
           <div>
             <p>${note.title}</p>
-            <p>${note.date}</p>
-            <p>${note.status}</p>
+            <p>${date}</p>
+            <p>${getStatus(note.status)}</p>
           </div>
 
           <div class="icons">
-            <i class="bi bi-airplane-fill" id="fly-btn"></i>
-            <i class="bi bi-trash" id="delete-btn"></i>
+            <i data-id='${
+              note.id
+            }' class="bi bi-airplane-fill" id="fly-btn"></i>
+            <i data-id='${note.id}' class="bi bi-trash" id="delete-btn"></i>
           </div>
-        </li>`
-    )
+        </li>`;
+    })
     .join("");
 
   // ilgili htmli arayüze ekle
   elements.noteList.innerHTML = noteCard;
+
+  document.querySelectorAll("#delete-btn").forEach((btn) => {
+    // Dlete Ionun data idsine eriş
+    const id = btn.dataset.id;
+
+    // Delete iconlarına tıklanınca deletenote fonksyonu çalıştır
+
+    btn.addEventListener("click", () => {
+      deleteNote(id);
+    });
+  });
+  // Fly Iconlara Eriş
+  document.querySelectorAll("#fly-btn").forEach((btn) => {
+    // Fly Btn'e tıklanınca flyNote fonksiyonunu çalıştır
+
+    btn.addEventListener("click", () => {
+      // Fly-btn'in id'sine eriş
+      const id = +btn.dataset.id;
+      flyToNote(id);
+    });
+  });
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  renderNotes();
+// ! Her not için bir marker render eden fnksiyon
+
+function renderMarkers() {
+  // Haritadaki markeları sıfırlar
+  layer.clearLayers();
+  notes.map((note) => {
+    // Eklenicek iconun türüne karar ver
+    const icon = getNoteIcon(note.status);
+
+    // Not için bir marker oluştur
+    L.marker(note.coords, { icon }).addTo(layer).bindPopup(note.title);
+  });
+}
+
+// ! Delete Function
+
+function deleteNote(id) {
+  // Kullanıcıdan onay al
+  const res = confirm("Not silme işlemini onaylıyor musunuz?");
+  // Eğer kullanıcı onayladıysa
+  if (res) {
+    // İdsi bilinen notu note dizisinden kaldır
+    notes = notes.filter((note) => note.id != id);
+    // Localstorageı güncelle
+    localStorage.setItem("notes", JSON.stringify(notes));
+
+    // Notlerı render et
+    renderNotes();
+    // markerları render et
+    renderMarkers();
+  }
+}
+
+// ! Notlara focuslanan fonksiyon
+function flyToNote(id) {
+  // İd'si bilinen notu note dizisi içerisinden bul
+  const foundedNote = notes.find((note) => note.id == id);
+
+  // Bulunan not'a focuslan
+  map.flyTo(foundedNote.coords, 12);
+}
+
+// arrowIcon'a tıklanınca çalışacak fonksiyon
+
+elements.arrowIcon.addEventListener("click", () => {
+  elements.aside.classList.toggle("hide");
 });
